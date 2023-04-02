@@ -315,8 +315,7 @@ Deque<T>::basic_iterator<is_const, is_reversed>::operator-=(int64_t step) {
 template <typename T>
 template <bool is_const, bool is_reversed>
 typename Deque<T>::template basic_iterator<is_const, is_reversed>
-Deque<T>::basic_iterator<is_const, is_reversed>::operator+(
-    int64_t step) const {
+Deque<T>::basic_iterator<is_const, is_reversed>::operator+(int64_t step) const {
   if (!is_reversed) {
     return basic_iterator<is_const, is_reversed>(deque_, index_ + step);
   } else {
@@ -327,8 +326,7 @@ Deque<T>::basic_iterator<is_const, is_reversed>::operator+(
 template <typename T>
 template <bool is_const, bool is_reversed>
 typename Deque<T>::template basic_iterator<is_const, is_reversed>
-Deque<T>::basic_iterator<is_const, is_reversed>::operator-(
-    int64_t step) const {
+Deque<T>::basic_iterator<is_const, is_reversed>::operator-(int64_t step) const {
   if (!is_reversed) {
     return basic_iterator<is_const, is_reversed>(deque_, index_ - step);
   } else {
