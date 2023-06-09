@@ -468,7 +468,7 @@ template <bool is_const>
 typename Deque<T>::template basic_iterator<is_const>::pointer
 Deque<T>::basic_iterator<is_const>::operator->() const {
   return const_cast<pointer>(
-    &(array_[index_ / Deque<T>::chunk_size][index_ % Deque<T>::chunk_size]));
+      &(array_[index_ / Deque<T>::chunk_size][index_ % Deque<T>::chunk_size]));
 }
 
 template <typename T>
