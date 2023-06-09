@@ -106,12 +106,12 @@ class List {
   size_t size_ = 0;
   Node* begin_ = nullptr;
   Node* end_ = nullptr;
-  Node* construct_node_(const T& value);
-  Node* construct_default_node_();
-  void fill_(size_t n, const T& element);
-  void fill_default_(size_t n);
-  void clear_();
-  void swap_(List& other);
+  Node* construct_node(const T& value);
+  Node* construct_default_node();
+  void fill(size_t n, const T& element);
+  void fill_default(size_t n);
+  void clear();
+  void swap(List& other);
 
  public:
   template <bool is_const>
@@ -172,7 +172,7 @@ class List {
 };
 
 template <typename T, typename Allocator>
-typename List<T, Allocator>::Node* List<T, Allocator>::construct_node_(
+typename List<T, Allocator>::Node* List<T, Allocator>::construct_node(
     const T& element) {
   Node* result = AllocatorTraits::allocate(allocator_, 1);
   try {
@@ -188,7 +188,7 @@ typename List<T, Allocator>::Node* List<T, Allocator>::construct_node_(
 
 template <typename T, typename Allocator>
 typename List<T, Allocator>::Node*
-List<T, Allocator>::construct_default_node_() {
+List<T, Allocator>::construct_default_node() {
   Node* result = AllocatorTraits::allocate(allocator_, 1);
   try {
     AllocatorTraits::construct(allocator_, &(result->value));
@@ -202,10 +202,10 @@ List<T, Allocator>::construct_default_node_() {
 }
 
 template <typename T, typename Allocator>
-void List<T, Allocator>::fill_(size_t n, const T& element) {
+void List<T, Allocator>::fill(size_t n, const T& element) {
   try {
     for (size_t i = 0; i < n; ++i) {
-      Node* node = construct_node_(element);
+      Node* node = construct_node(element);
       if (begin_ == nullptr) {
         begin_ = node;
         end_ = node;
@@ -221,16 +221,16 @@ void List<T, Allocator>::fill_(size_t n, const T& element) {
       ++size_;
     }
   } catch (...) {
-    clear_();
+    clear();
     throw;
   }
 }
 
 template <typename T, typename Allocator>
-void List<T, Allocator>::fill_default_(size_t n) {
+void List<T, Allocator>::fill_default(size_t n) {
   try {
     for (size_t i = 0; i < n; ++i) {
-      Node* node = construct_default_node_();
+      Node* node = construct_default_node();
       if (begin_ == nullptr) {
         begin_ = node;
         end_ = node;
@@ -246,13 +246,13 @@ void List<T, Allocator>::fill_default_(size_t n) {
       ++size_;
     }
   } catch (...) {
-    clear_();
+    clear();
     throw;
   }
 }
 
 template <typename T, typename Allocator>
-void List<T, Allocator>::clear_() {
+void List<T, Allocator>::clear() {
   Node* temporary = begin_;
   while (temporary != nullptr) {
     std::swap(begin_, temporary->next);
@@ -265,7 +265,7 @@ void List<T, Allocator>::clear_() {
 }
 
 template <typename T, typename Allocator>
-void List<T, Allocator>::swap_(List& other) {
+void List<T, Allocator>::swap(List& other) {
   std::swap(size_, other.size_);
   std::swap(begin_, other.begin_);
   std::swap(end_, other.end_);
@@ -373,12 +373,12 @@ List<T, Allocator>::basic_iterator<is_const>::base() const {
 
 template <typename T, typename Allocator>
 List<T, Allocator>::List(size_t n) {
-  fill_default_(n);
+  fill_default(n);
 }
 
 template <typename T, typename Allocator>
 List<T, Allocator>::List(size_t n, const T& element) {
-  fill_(n, element);
+  fill(n, element);
 }
 
 template <typename T, typename Allocator>
@@ -389,13 +389,13 @@ List<T, Allocator>::List(const Allocator& allocator)
 template <typename T, typename Allocator>
 List<T, Allocator>::List(size_t n, const Allocator& allocator)
     : allocator_(allocator) {
-  fill_default_(n);
+  fill_default(n);
 }
 
 template <typename T, typename Allocator>
 List<T, Allocator>::List(size_t n, const T& element, const Allocator& allocator)
     : allocator_(allocator) {
-  fill_(n, element);
+  fill(n, element);
 }
 
 template <typename T, typename Allocator>
@@ -408,7 +408,7 @@ List<T, Allocator>::List(const List& other)
   try {
     Node* cur_other = other.begin_;
     for (size_t i = 0; i < other.size_; ++i) {
-      Node* node = construct_node_(cur_other->value);
+      Node* node = construct_node(cur_other->value);
       if (begin_ == nullptr) {
         begin_ = node;
         end_ = node;
@@ -425,14 +425,14 @@ List<T, Allocator>::List(const List& other)
       cur_other = cur_other->next;
     }
   } catch (...) {
-    clear_();
+    clear();
     throw;
   }
 }
 
 template <typename T, typename Allocator>
 List<T, Allocator>::~List() {
-  clear_();
+  clear();
 }
 
 template <typename T, typename Allocator>
@@ -445,7 +445,7 @@ List<T, Allocator>& List<T, Allocator>::operator=(const List& other) {
     allocator_ = other.allocator_;
   }
   List temporary(other);
-  swap_(temporary);
+  swap(temporary);
   return *this;
 }
 
@@ -545,7 +545,7 @@ typename List<T, Allocator>::const_reverse_iterator List<T, Allocator>::crend()
 
 template <typename T, typename Allocator>
 void List<T, Allocator>::insert(const const_iterator& iter, const T& element) {
-  Node* node = construct_node_(element);
+  Node* node = construct_node(element);
   Node* place = iter.node;
   if (place == nullptr) {
     if (end_ == nullptr) {
