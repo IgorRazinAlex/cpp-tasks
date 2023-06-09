@@ -31,14 +31,14 @@ class List {
   Node* begin_ = nullptr;
   Node* end_ = nullptr;
   template <typename... Args>
-  Node* construct_move_node_(Args&&... args);
-  Node* construct_node_(const T& value);
-  Node* construct_default_node_();
-  void fill_(size_t n, const T& element);
-  void fill_default_(size_t n);
-  void clear_();
-  void swap_(List& other);
-  void swap_(List&& other);
+  Node* construct_node(Args&&... args);
+  Node* construct_node(const T& value);
+  Node* construct_default_node();
+  void fill(size_t n, const T& element);
+  void fill_default(size_t n);
+  void clear();
+  void swap(List& other);
+  void swap(List&& other);
 
  public:
   template <bool is_const>
@@ -104,7 +104,7 @@ class List {
 
 template <typename T, typename Allocator>
 template <typename... Args>
-typename List<T, Allocator>::Node* List<T, Allocator>::construct_move_node_(
+typename List<T, Allocator>::Node* List<T, Allocator>::construct_node(
     Args&&... args) {
   Node* result = AllocatorTraits::allocate(allocator_, 1);
   try {
@@ -120,7 +120,7 @@ typename List<T, Allocator>::Node* List<T, Allocator>::construct_move_node_(
 }
 
 template <typename T, typename Allocator>
-typename List<T, Allocator>::Node* List<T, Allocator>::construct_node_(
+typename List<T, Allocator>::Node* List<T, Allocator>::construct_node(
     const T& element) {
   Node* result = AllocatorTraits::allocate(allocator_, 1);
   try {
@@ -136,7 +136,7 @@ typename List<T, Allocator>::Node* List<T, Allocator>::construct_node_(
 
 template <typename T, typename Allocator>
 typename List<T, Allocator>::Node*
-List<T, Allocator>::construct_default_node_() {
+List<T, Allocator>::construct_default_node() {
   Node* result = AllocatorTraits::allocate(allocator_, 1);
   try {
     AllocatorTraits::construct(allocator_, &(result->value));
@@ -150,10 +150,10 @@ List<T, Allocator>::construct_default_node_() {
 }
 
 template <typename T, typename Allocator>
-void List<T, Allocator>::fill_(size_t n, const T& element) {
+void List<T, Allocator>::fill(size_t n, const T& element) {
   try {
     for (size_t i = 0; i < n; ++i) {
-      Node* node = construct_node_(element);
+      Node* node = construct_node(element);
       if (begin_ == nullptr) {
         begin_ = node;
         end_ = node;
@@ -169,16 +169,16 @@ void List<T, Allocator>::fill_(size_t n, const T& element) {
       ++size_;
     }
   } catch (...) {
-    clear_();
+    clear();
     throw;
   }
 }
 
 template <typename T, typename Allocator>
-void List<T, Allocator>::fill_default_(size_t n) {
+void List<T, Allocator>::fill_default(size_t n) {
   try {
     for (size_t i = 0; i < n; ++i) {
-      Node* node = construct_default_node_();
+      Node* node = construct_default_node();
       if (begin_ == nullptr) {
         begin_ = node;
         end_ = node;
@@ -194,13 +194,13 @@ void List<T, Allocator>::fill_default_(size_t n) {
       ++size_;
     }
   } catch (...) {
-    clear_();
+    clear();
     throw;
   }
 }
 
 template <typename T, typename Allocator>
-void List<T, Allocator>::clear_() {
+void List<T, Allocator>::clear() {
   Node* temporary = begin_;
   while (temporary != nullptr) {
     std::swap(begin_, temporary->next);
@@ -213,16 +213,16 @@ void List<T, Allocator>::clear_() {
 }
 
 template <typename T, typename Allocator>
-void List<T, Allocator>::swap_(List& other) {
+void List<T, Allocator>::swap(List& other) {
   std::swap(size_, other.size_);
   std::swap(begin_, other.begin_);
   std::swap(end_, other.end_);
 }
 
 template <typename T, typename Allocator>
-void List<T, Allocator>::swap_(List&& other) {
+void List<T, Allocator>::swap(List&& other) {
   auto copy = std::move(other);
-  swap_(copy);
+  swap(copy);
 }
 
 template <typename T, typename Allocator>
@@ -327,12 +327,12 @@ List<T, Allocator>::basic_iterator<is_const>::base() const {
 
 template <typename T, typename Allocator>
 List<T, Allocator>::List(size_t n) {
-  fill_default_(n);
+  fill_default(n);
 }
 
 template <typename T, typename Allocator>
 List<T, Allocator>::List(size_t n, const T& element) {
-  fill_(n, element);
+  fill(n, element);
 }
 
 template <typename T, typename Allocator>
@@ -343,13 +343,13 @@ List<T, Allocator>::List(const Allocator& allocator)
 template <typename T, typename Allocator>
 List<T, Allocator>::List(size_t n, const Allocator& allocator)
     : allocator_(allocator) {
-  fill_default_(n);
+  fill_default(n);
 }
 
 template <typename T, typename Allocator>
 List<T, Allocator>::List(size_t n, const T& element, const Allocator& allocator)
     : allocator_(allocator) {
-  fill_(n, element);
+  fill(n, element);
 }
 
 template <typename T, typename Allocator>
@@ -362,7 +362,7 @@ List<T, Allocator>::List(const List& other)
   try {
     Node* cur_other = other.begin_;
     for (size_t i = 0; i < other.size_; ++i) {
-      Node* node = construct_node_(cur_other->value);
+      Node* node = construct_node(cur_other->value);
       if (begin_ == nullptr) {
         begin_ = node;
         end_ = node;
@@ -379,7 +379,7 @@ List<T, Allocator>::List(const List& other)
       cur_other = cur_other->next;
     }
   } catch (...) {
-    clear_();
+    clear();
     throw;
   }
 }
@@ -397,7 +397,7 @@ List<T, Allocator>::List(List&& other)
 
 template <typename T, typename Allocator>
 List<T, Allocator>::~List() {
-  clear_();
+  clear();
 }
 
 template <typename T, typename Allocator>
@@ -410,7 +410,7 @@ List<T, Allocator>& List<T, Allocator>::operator=(const List& other) {
     allocator_ = other.allocator_;
   }
   List temporary(other);
-  swap_(temporary);
+  swap(temporary);
   return *this;
 }
 
@@ -419,7 +419,7 @@ List<T, Allocator>& List<T, Allocator>::operator=(List&& other) {
   if (this == &other) {
     return *this;
   }
-  swap_(std::move(other));
+  swap(std::move(other));
   return *this;
 }
 
@@ -519,7 +519,7 @@ typename List<T, Allocator>::const_reverse_iterator List<T, Allocator>::crend()
 
 template <typename T, typename Allocator>
 void List<T, Allocator>::insert(const const_iterator& iter, const T& element) {
-  Node* node = construct_node_(element);
+  Node* node = construct_node(element);
   Node* place = iter.node;
   if (place == nullptr) {
     if (end_ == nullptr) {
@@ -563,7 +563,7 @@ void List<T, Allocator>::erase(const const_iterator& iter) {
 template <typename T, typename Allocator>
 template <typename... Args>
 void List<T, Allocator>::emplace_back(Args&&... args) {
-  Node* node = construct_move_node_(std::forward<Args>(args)...);
+  Node* node = construct_node(std::forward<Args>(args)...);
   if (end_ == nullptr) {
     end_ = node;
     begin_ = node;
@@ -596,13 +596,12 @@ class UnorderedMap {
   Equal equal_ = Equal();
   Hash hash_ = Hash();
   List<NodeType, Alloc> data_;
-  [[no_unique_address]] Alloc regular_allocator_;
   std::vector<List<iterator, AllocIterator>, AllocList> hash_table_;
   float max_load_factor_ = 1.0;
 
-  size_t get_bucket_(const Key& key) const;
-  void rehash_(bool force = false);
-  void swap_(UnorderedMap& other);
+  size_t get_bucket(const Key& key) const;
+  void rehash(bool force = false);
+  void swap(UnorderedMap& other);
 
  public:
   UnorderedMap();
@@ -648,14 +647,14 @@ class UnorderedMap {
 
 template <typename Key, typename Value, typename Hash, typename Equal,
           typename Alloc>
-size_t UnorderedMap<Key, Value, Hash, Equal, Alloc>::get_bucket_(
+size_t UnorderedMap<Key, Value, Hash, Equal, Alloc>::get_bucket(
     const Key& key) const {
   return hash_(key) % hash_table_.size();
 }
 
 template <typename Key, typename Value, typename Hash, typename Equal,
           typename Alloc>
-void UnorderedMap<Key, Value, Hash, Equal, Alloc>::rehash_(bool force) {
+void UnorderedMap<Key, Value, Hash, Equal, Alloc>::rehash(bool force) {
   if ((hash_table_.size() >= max_load_factor_ * data_.size()) && (!force)) {
     return;
   }
@@ -673,7 +672,7 @@ void UnorderedMap<Key, Value, Hash, Equal, Alloc>::rehash_(bool force) {
 
 template <typename Key, typename Value, typename Hash, typename Equal,
           typename Alloc>
-void UnorderedMap<Key, Value, Hash, Equal, Alloc>::swap_(UnorderedMap& other) {
+void UnorderedMap<Key, Value, Hash, Equal, Alloc>::swap(UnorderedMap& other) {
   std::swap(data_, other.data_);
   std::swap(hash_table_, other.hash_table_);
   std::swap(max_load_factor_, other.max_load_factor_);
@@ -713,7 +712,7 @@ UnorderedMap<Key, Value, Hash, Equal, Alloc>::operator=(
     return *this;
   }
   UnorderedMap copy(other);
-  swap_(copy);
+  swap(copy);
   return *this;
 }
 
@@ -827,7 +826,7 @@ UnorderedMap<Key, Value, Hash, Equal, Alloc>::find(const Key& key) {
   if (hash_table_.empty()) {
     return end();
   }
-  for (auto iter : hash_table_[get_bucket_(key)]) {
+  for (auto iter : hash_table_[get_bucket(key)]) {
     if (equal_(iter->first, key)) {
       return iter;
     }
@@ -842,7 +841,7 @@ UnorderedMap<Key, Value, Hash, Equal, Alloc>::find(const Key& key) const {
   if (hash_table_.empty()) {
     return cend();
   }
-  for (auto iter : hash_table_[get_bucket_(key)]) {
+  for (auto iter : hash_table_[get_bucket(key)]) {
     if (Equal(iter->first, key)) {
       return iter;
     }
@@ -864,10 +863,10 @@ UnorderedMap<Key, Value, Hash, Equal, Alloc>::emplace(Args&&... args) {
   }
   if (hash_table_.empty()) {
     hash_table_.resize(1);
-    rehash_(true);
+    rehash(true);
   }
-  hash_table_[get_bucket_(new_element->first)].push_back(new_element);
-  rehash_();
+  hash_table_[get_bucket(new_element->first)].push_back(new_element);
+  rehash();
   return {new_element, true};
 }
 
@@ -948,7 +947,7 @@ Value& UnorderedMap<Key, Value, Hash, Equal, Alloc>::operator[](Key&& key) {
 template <typename Key, typename Value, typename Hash, typename Equal,
           typename Alloc>
 void UnorderedMap<Key, Value, Hash, Equal, Alloc>::erase(const_iterator iter) {
-  size_t hash = get_bucket_(iter->first);
+  size_t hash = get_bucket(iter->first);
   for (auto x = hash_table_[hash].begin(); x != hash_table_[hash].end(); ++x) {
     if (equal_(iter->first, (*x)->first)) {
       hash_table_[hash].erase(x);
@@ -963,7 +962,7 @@ template <typename Key, typename Value, typename Hash, typename Equal,
 void UnorderedMap<Key, Value, Hash, Equal, Alloc>::erase(
     const_iterator start, const_iterator finish) {
   for (auto iter = start; iter != finish; ++iter) {
-    size_t hash = get_bucket_(iter->first);
+    size_t hash = get_bucket(iter->first);
     for (auto x = hash_table_[hash].begin(); x != hash_table_[hash].end();
          ++x) {
       if (equal_(iter->first, (*x)->first)) {
@@ -983,7 +982,7 @@ template <typename Key, typename Value, typename Hash, typename Equal,
 void UnorderedMap<Key, Value, Hash, Equal, Alloc>::reserve(size_t new_size) {
   if (hash_table_.size() < new_size) {
     hash_table_.resize(new_size);
-    rehash_(true);
+    rehash(true);
   }
 }
 
@@ -992,7 +991,7 @@ template <typename Key, typename Value, typename Hash, typename Equal,
 float UnorderedMap<Key, Value, Hash, Equal, Alloc>::load_factor() {
   if (hash_table_.empty()) {
     hash_table_.resize(1);
-    rehash_();
+    rehash();
   }
   return static_cast<float>(data_.size()) /
          static_cast<float>(hash_table_.size());
@@ -1009,5 +1008,5 @@ template <typename Key, typename Value, typename Hash, typename Equal,
 void UnorderedMap<Key, Value, Hash, Equal, Alloc>::max_load_factor(
     float new_load_factor) {
   max_load_factor_ = new_load_factor;
-  rehash_();
+  rehash();
 }
