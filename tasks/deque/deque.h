@@ -2,29 +2,33 @@
 #include <type_traits>
 #include <typeinfo>
 
-const size_t chunk_size = 32;
-
 template <typename T>
 class Deque {
  private:
+  static const size_t chunk_size_ = 32;
   T** array_ = nullptr;
   size_t size_ = 0;
   size_t start_ = 0;
   size_t chunk_count_ = 0;
   void append_memory();
   void appfront_memory();
+  void swap_(Deque<T> other);
 
  public:
   template <bool is_const, bool is_reversed>
   struct basic_iterator {
-    const Deque<T>* deque_ = nullptr;
+   private:
+    const T* const* array_;
+    size_t start_;
+    basic_iterator(const T* const* array, size_t start, int64_t index_);
+
+   public:
     int64_t index_ = 0;
-    typedef typename std::conditional<is_const, const T, T>::type value_type;
-    typedef typename std::conditional<is_const, const T&, T&>::type reference;
-    typedef typename std::conditional<is_const, const T*, T*>::type pointer;
+    using value_type = std::conditional<is_const, const T, T>::type;
+    using reference = std::conditional<is_const, const T&, T&>::type;
+    using pointer = std::conditional<is_const, const T*, T*>::type;
     using iterator_category = std::random_access_iterator_tag;
     using difference_type = int64_t;
-    basic_iterator() = default;
     basic_iterator(const Deque<T>* deque, int64_t index);
     basic_iterator& operator+=(int64_t step);
     basic_iterator& operator-=(int64_t step);
@@ -89,7 +93,8 @@ void Deque<T>::append_memory() {
   try {
     new_array = reinterpret_cast<T**>(new char*[new_chunk_count]);
     for (; index < new_chunk_count; ++index) {
-      new_array[index] = reinterpret_cast<T*>(new char[chunk_size * sizeof(T)]);
+      new_array[index] =
+          reinterpret_cast<T*>(new char[chunk_size_ * sizeof(T)]);
     }
   } catch (...) {
     for (size_t i = chunk_count_; i < index; ++i) {
@@ -98,9 +103,7 @@ void Deque<T>::append_memory() {
     delete[] reinterpret_cast<char**>(new_array);
     throw;
   }
-  for (size_t i = 0; i < chunk_count_; ++i) {
-    new_array[i] = array_[i];
-  }
+  std::copy(array_, array_ + chunk_count_, new_array);
   chunk_count_ = new_chunk_count;
   delete[] array_;
   array_ = new_array;
@@ -114,7 +117,8 @@ void Deque<T>::appfront_memory() {
   try {
     new_array = reinterpret_cast<T**>(new char*[new_chunk_count]);
     for (; index <= chunk_count_; ++index) {
-      new_array[index] = reinterpret_cast<T*>(new char[chunk_size * sizeof(T)]);
+      new_array[index] =
+          reinterpret_cast<T*>(new char[chunk_size_ * sizeof(T)]);
     }
   } catch (...) {
     for (size_t i = 0; i < index; ++i) {
@@ -123,13 +127,19 @@ void Deque<T>::appfront_memory() {
     delete[] reinterpret_cast<char**>(new_array);
     throw;
   }
-  for (size_t i = 0; i < chunk_count_; ++i) {
-    new_array[i + chunk_count_ + 1] = array_[i];
-  }
-  start_ += (chunk_count_ + 1) * chunk_size;
+  std::copy(array_, array_ + chunk_count_, new_array + chunk_count_ + 1);
+  start_ += (chunk_count_ + 1) * chunk_size_;
   chunk_count_ = new_chunk_count;
   delete[] array_;
   array_ = new_array;
+}
+
+template <typename T>
+void Deque<T>::swap_(Deque<T> other) {
+  std::swap(array_, other.array_);
+  std::swap(size_, other.size_);
+  std::swap(start_, other.start_);
+  std::swap(chunk_count_, other.chunk_count_);
 }
 
 template <typename T>
@@ -145,32 +155,84 @@ Deque<T>::~Deque() {
 
 template <typename T>
 Deque<T>::Deque(const Deque<T>& other) {
-  *this = other;
+  size_t chunk = 0;
+  size_t index = 0;
+  try {
+    size_ = other.size_;
+    start_ = other.start_;
+    chunk_count_ = other.chunk_count_;
+    array_ = reinterpret_cast<T**>(new char*[chunk_count_]);
+    for (; chunk < chunk_count_; ++chunk) {
+      array_[chunk] = reinterpret_cast<T*>(new char[chunk_size_ * sizeof(T)]);
+    }
+    for (; index < size_; ++index) {
+      new (array_[index / chunk_size_] + (index % chunk_size_)) T(other[index]);
+    }
+  } catch (...) {
+    for (size_t i = 0; i < index; ++i) {
+      (array_[i / chunk_size_] + (i % chunk_size_))->~T();
+    }
+    for (size_t i = 0; i < chunk; ++i) {
+      delete[] reinterpret_cast<char*>(array_[i]);
+    }
+    delete[] reinterpret_cast<char**>(array_);
+    array_ = nullptr;
+    size_ = 0;
+    start_ = 0;
+    chunk_count_ = 0;
+    throw;
+  }
 }
 
 template <typename T>
 Deque<T>::Deque(size_t count)
-    : Deque(count, T()) {
+    : size_(count),
+      start_(0),
+      chunk_count_((count + chunk_size_ - 1) / chunk_size_) {
+  size_t chunk = 0;
+  size_t index = 0;
+  try {
+    array_ = reinterpret_cast<T**>(new char*[chunk_count_]);
+    for (; chunk < chunk_count_; ++chunk) {
+      array_[chunk] = reinterpret_cast<T*>(new char[chunk_size_ * sizeof(T)]);
+    }
+    for (; index < size_; ++index) {
+      new (array_[index / chunk_size_] + (index % chunk_size_)) T();
+    }
+  } catch (...) {
+    for (size_t i = 0; i < index; ++i) {
+      (array_[i / chunk_size_] + (i % chunk_size_))->~T();
+    }
+    for (size_t i = 0; i < chunk; ++i) {
+      delete[] reinterpret_cast<char*>(array_[i]);
+    }
+    delete[] reinterpret_cast<char**>(array_);
+    array_ = nullptr;
+    size_ = 0;
+    start_ = 0;
+    chunk_count_ = 0;
+    throw;
+  }
 }
 
 template <typename T>
 Deque<T>::Deque(size_t count, const T& element)
     : size_(count),
       start_(0),
-      chunk_count_((count + chunk_size - 1) / chunk_size) {
+      chunk_count_((count + chunk_size_ - 1) / chunk_size_) {
   size_t chunk = 0;
   size_t index = 0;
   try {
     array_ = reinterpret_cast<T**>(new char*[chunk_count_]);
     for (; chunk < chunk_count_; ++chunk) {
-      array_[chunk] = reinterpret_cast<T*>(new char[chunk_size * sizeof(T)]);
+      array_[chunk] = reinterpret_cast<T*>(new char[chunk_size_ * sizeof(T)]);
     }
     for (; index < size_; ++index) {
-      new (array_[index / chunk_size] + (index % chunk_size)) T(element);
+      new (array_[index / chunk_size_] + (index % chunk_size_)) T(element);
     }
   } catch (...) {
     for (size_t i = 0; i < index; ++i) {
-      (array_[i / chunk_size] + (i % chunk_size))->~T();
+      (array_[i / chunk_size_] + (i % chunk_size_))->~T();
     }
     for (size_t i = 0; i < chunk; ++i) {
       delete[] reinterpret_cast<char*>(array_[i]);
@@ -186,33 +248,11 @@ Deque<T>::Deque(size_t count, const T& element)
 
 template <typename T>
 Deque<T>& Deque<T>::operator=(const Deque<T>& other) {
-  size_t chunk = 0;
-  size_t index = 0;
-  try {
-    size_ = other.size_;
-    start_ = other.start_;
-    chunk_count_ = other.chunk_count_;
-    array_ = reinterpret_cast<T**>(new char*[chunk_count_]);
-    for (; chunk < chunk_count_; ++chunk) {
-      array_[chunk] = reinterpret_cast<T*>(new char[chunk_size * sizeof(T)]);
-    }
-    for (; index < size_; ++index) {
-      new (array_[index / chunk_size] + (index % chunk_size)) T(other[index]);
-    }
-  } catch (...) {
-    for (size_t i = 0; i < index; ++i) {
-      (array_[i / chunk_size] + (i % chunk_size))->~T();
-    }
-    for (size_t i = 0; i < chunk; ++i) {
-      delete[] reinterpret_cast<char*>(array_[i]);
-    }
-    delete[] reinterpret_cast<char**>(array_);
-    array_ = nullptr;
-    size_ = 0;
-    start_ = 0;
-    chunk_count_ = 0;
-    throw;
+  if (this == &other) {
+    return *this;
   }
+  Deque<T> copy(other);
+  swap_(copy);
   return *this;
 }
 
@@ -223,12 +263,12 @@ size_t Deque<T>::size() const {
 
 template <typename T>
 T& Deque<T>::operator[](size_t index) {
-  return array_[(start_ + index) / chunk_size][(start_ + index) % chunk_size];
+  return array_[(start_ + index) / chunk_size_][(start_ + index) % chunk_size_];
 }
 
 template <typename T>
 const T& Deque<T>::operator[](size_t index) const {
-  return array_[(start_ + index) / chunk_size][(start_ + index) % chunk_size];
+  return array_[(start_ + index) / chunk_size_][(start_ + index) % chunk_size_];
 }
 
 template <typename T>
@@ -249,10 +289,11 @@ const T& Deque<T>::at(size_t index) const {
 
 template <typename T>
 void Deque<T>::push_back(const T& element) {
-  if (start_ + size_ == chunk_count_ * chunk_size) {
+  if (start_ + size_ == chunk_count_ * chunk_size_) {
     append_memory();
   }
-  new (&((*this)[size_])) T(element);
+  new (array_[(start_ + size_) / chunk_size_] +
+       ((start_ + size_) % chunk_size_)) T(element);
   ++size_;
 }
 
@@ -267,7 +308,7 @@ void Deque<T>::push_front(const T& element) {
   if (start_ == 0) {
     appfront_memory();
   }
-  new (&(array_[(start_ - 1) / chunk_size][(start_ - 1) % chunk_size]))
+  new (array_[(start_ - 1) / chunk_size_] + ((start_ - 1) % chunk_size_))
       T(element);
   --start_;
   ++size_;
@@ -283,8 +324,18 @@ void Deque<T>::pop_front() {
 template <typename T>
 template <bool is_const, bool is_reversed>
 Deque<T>::basic_iterator<is_const, is_reversed>::basic_iterator(
+    const T* const* array, size_t start, int64_t index)
+    : array_(array),
+      start_(start),
+      index_(index) {
+}
+
+template <typename T>
+template <bool is_const, bool is_reversed>
+Deque<T>::basic_iterator<is_const, is_reversed>::basic_iterator(
     const Deque* deque, int64_t index)
-    : deque_(deque),
+    : array_(deque->array_),
+      start_(deque->start_),
       index_(index) {
 }
 
@@ -317,9 +368,9 @@ template <bool is_const, bool is_reversed>
 typename Deque<T>::template basic_iterator<is_const, is_reversed>
 Deque<T>::basic_iterator<is_const, is_reversed>::operator+(int64_t step) const {
   if (!is_reversed) {
-    return basic_iterator<is_const, is_reversed>(deque_, index_ + step);
+    return basic_iterator<is_const, is_reversed>(array_, start_, index_ + step);
   } else {
-    return basic_iterator<is_const, is_reversed>(deque_, index_ - step);
+    return basic_iterator<is_const, is_reversed>(array_, start_, index_ - step);
   }
 };
 
@@ -328,9 +379,9 @@ template <bool is_const, bool is_reversed>
 typename Deque<T>::template basic_iterator<is_const, is_reversed>
 Deque<T>::basic_iterator<is_const, is_reversed>::operator-(int64_t step) const {
   if (!is_reversed) {
-    return basic_iterator<is_const, is_reversed>(deque_, index_ - step);
+    return basic_iterator<is_const, is_reversed>(array_, start_, index_ - step);
   } else {
-    return basic_iterator<is_const, is_reversed>(deque_, index_ + step);
+    return basic_iterator<is_const, is_reversed>(array_, start_, index_ + step);
   }
 }
 
@@ -442,28 +493,30 @@ template <typename T>
 template <bool is_const, bool is_reversed>
 typename Deque<T>::template basic_iterator<is_const, is_reversed>::reference
 Deque<T>::basic_iterator<is_const, is_reversed>::operator*() const {
-  return deque_->array_[index_ / chunk_size][index_ % chunk_size];
+  return const_cast<reference>(
+      array_[index_ / Deque<T>::chunk_size_][index_ % Deque<T>::chunk_size_]);
 }
 
 template <typename T>
 template <bool is_const, bool is_reversed>
 typename Deque<T>::template basic_iterator<is_const, is_reversed>::pointer
 Deque<T>::basic_iterator<is_const, is_reversed>::operator->() const {
-  return &(deque_->array_[index_ / chunk_size][index_ % chunk_size]);
+  return const_cast<pointer>(&(
+      array_[index_ / Deque<T>::chunk_size_][index_ % Deque<T>::chunk_size_]));
 }
 
 template <typename T>
 template <bool is_const, bool is_reversed>
 Deque<T>::basic_iterator<is_const, is_reversed>::operator Deque<
     T>::basic_iterator<true, false>() const {
-  return basic_iterator<true, false>(deque_, index_);
+  return basic_iterator<true, false>(array_, start_, index_);
 }
 
 template <typename T>
 template <bool is_const, bool is_reversed>
 Deque<T>::basic_iterator<is_const, is_reversed>::operator Deque<
     T>::basic_iterator<true, true>() const {
-  return basic_iterator<true, true>(deque_, index_);
+  return basic_iterator<true, true>(array_, start_, index_);
 }
 
 template <typename T>
@@ -529,24 +582,16 @@ typename Deque<T>::const_reverse_iterator Deque<T>::crend() const {
 
 template <typename T>
 void Deque<T>::insert(const Deque<T>::iterator& iter, const T& element) {
-  if (size_ == 0) {
-    push_back(element);
-    return;
+  push_back(element);
+  for (size_t i = iter.index_ - start_; i < size_; ++i) {
+    std::swap((*this)[i], (*this)[size_ - 1]);
   }
-  push_back((*this)[size_ - 1]);
-  for (size_t i = size_ - 2; i > iter.index_ - start_; --i) {
-    (*this)[i].~T();
-    new (&((*this)[i])) T((*this)[i - 1]);
-  }
-  (*this)[iter.index_ - start_].~T();
-  new (&((*this)[iter.index_ - start_])) T(element);
 }
 
 template <typename T>
 void Deque<T>::erase(const Deque<T>::iterator& iter) {
   for (size_t i = iter.index_ - start_; i < size_ - 1; ++i) {
-    (*this)[i].~T();
-    new (&((*this)[i])) T((*this)[i + 1]);
+    std::swap((*this)[i], (*this)[i + 1]);
   }
   pop_back();
 }
