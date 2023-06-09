@@ -92,8 +92,7 @@ void Deque<T>::append_memory() {
   try {
     new_array = reinterpret_cast<T**>(new char*[new_chunk_count]);
     for (; index < new_chunk_count; ++index) {
-      new_array[index] =
-          reinterpret_cast<T*>(new char[chunk_size * sizeof(T)]);
+      new_array[index] = reinterpret_cast<T*>(new char[chunk_size * sizeof(T)]);
     }
   } catch (...) {
     for (size_t i = chunk_count_; i < index; ++i) {
@@ -116,8 +115,7 @@ void Deque<T>::appfront_memory() {
   try {
     new_array = reinterpret_cast<T**>(new char*[new_chunk_count]);
     for (; index <= chunk_count_; ++index) {
-      new_array[index] =
-          reinterpret_cast<T*>(new char[chunk_size * sizeof(T)]);
+      new_array[index] = reinterpret_cast<T*>(new char[chunk_size * sizeof(T)]);
     }
   } catch (...) {
     for (size_t i = 0; i < index; ++i) {
@@ -298,8 +296,8 @@ void Deque<T>::push_back(const T& element) {
   if (start_ + size_ == chunk_count_ * chunk_size) {
     append_memory();
   }
-  new (array_[(start_ + size_) / chunk_size] +
-       ((start_ + size_) % chunk_size)) T(element);
+  new (array_[(start_ + size_) / chunk_size] + ((start_ + size_) % chunk_size))
+      T(element);
   ++size_;
 }
 
@@ -469,8 +467,8 @@ template <typename T>
 template <bool is_const>
 typename Deque<T>::template basic_iterator<is_const>::pointer
 Deque<T>::basic_iterator<is_const>::operator->() const {
-  return const_cast<pointer>(&(
-      array_[index_ / Deque<T>::chunk_size][index_ % Deque<T>::chunk_size]));
+  return const_cast<pointer>(
+    &(array_[index_ / Deque<T>::chunk_size][index_ % Deque<T>::chunk_size]));
 }
 
 template <typename T>
