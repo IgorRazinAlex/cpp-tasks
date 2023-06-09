@@ -680,7 +680,6 @@ namespace TestsByUnrealf1 {
         const size_t size = 20'000;
         const size_t initial_data = 100;
         Deque<Fragile> d(size, Fragile(size, initial_data));
-
         auto is_intact = [&] {
             return d.size() == size && std::all_of(d.begin(), d.end(), [initial_data](const auto& item) {return item.data == initial_data;} );
         };
