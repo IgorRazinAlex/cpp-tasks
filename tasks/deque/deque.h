@@ -15,7 +15,7 @@ class Deque {
   void swap_(Deque<T> other);
 
  public:
-  template <bool is_const, bool is_reversed>
+  template <bool is_const>
   struct basic_iterator {
    private:
     const T* const* array_;
@@ -47,13 +47,12 @@ class Deque {
     bool operator<=(const basic_iterator& other) const;
     reference operator*() const;
     pointer operator->() const;
-    operator basic_iterator<true, false>() const;
-    operator basic_iterator<true, true>() const;
+    operator basic_iterator<true>() const;
   };
-  using iterator = basic_iterator<false, false>;
-  using const_iterator = basic_iterator<true, false>;
-  using reverse_iterator = basic_iterator<false, true>;
-  using const_reverse_iterator = basic_iterator<true, true>;
+  using iterator = basic_iterator<false>;
+  using const_iterator = basic_iterator<true>;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
   ~Deque();
   Deque() = default;
   Deque(const Deque<T>& other);
@@ -230,7 +229,14 @@ Deque<T>::Deque(size_t count, const T& element)
     for (; index < size_; ++index) {
       new (array_[index / chunk_size_] + (index % chunk_size_)) T(element);
     }
-  } catch (...) {
+  } catch (std::bad_alloc) {
+    delete[] reinterpret_cast<char**>(array_);
+    array_ = nullptr;
+    size_ = 0;
+    start_ = 0;
+    chunk_count_ = 0;
+    throw;
+  } catch (std::runtime_error) {
     for (size_t i = 0; i < index; ++i) {
       (array_[i / chunk_size_] + (i % chunk_size_))->~T();
     }
@@ -322,201 +328,156 @@ void Deque<T>::pop_front() {
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-Deque<T>::basic_iterator<is_const, is_reversed>::basic_iterator(
-    const T* const* array, size_t start, int64_t index)
+template <bool is_const>
+Deque<T>::basic_iterator<is_const>::basic_iterator(const T* const* array,
+                                                   size_t start, int64_t index)
     : array_(array),
       start_(start),
       index_(index) {
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-Deque<T>::basic_iterator<is_const, is_reversed>::basic_iterator(
-    const Deque* deque, int64_t index)
+template <bool is_const>
+Deque<T>::basic_iterator<is_const>::basic_iterator(const Deque* deque,
+                                                   int64_t index)
     : array_(deque->array_),
       start_(deque->start_),
       index_(index) {
 }
 
+// TODO
 template <typename T>
-template <bool is_const, bool is_reversed>
-typename Deque<T>::template basic_iterator<is_const, is_reversed>&
-Deque<T>::basic_iterator<is_const, is_reversed>::operator+=(int64_t step) {
-  if (!is_reversed) {
-    index_ += step;
-  } else {
-    index_ -= step;
-  }
+template <bool is_const>
+typename Deque<T>::template basic_iterator<is_const>&
+Deque<T>::basic_iterator<is_const>::operator+=(int64_t step) {
+  index_ += step;
   return *this;
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-typename Deque<T>::template basic_iterator<is_const, is_reversed>&
-Deque<T>::basic_iterator<is_const, is_reversed>::operator-=(int64_t step) {
-  if (!is_reversed) {
-    index_ -= step;
-  } else {
-    index_ += step;
-  }
+template <bool is_const>
+typename Deque<T>::template basic_iterator<is_const>&
+Deque<T>::basic_iterator<is_const>::operator-=(int64_t step) {
+  index_ -= step;
   return *this;
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-typename Deque<T>::template basic_iterator<is_const, is_reversed>
-Deque<T>::basic_iterator<is_const, is_reversed>::operator+(int64_t step) const {
-  if (!is_reversed) {
-    return basic_iterator<is_const, is_reversed>(array_, start_, index_ + step);
-  } else {
-    return basic_iterator<is_const, is_reversed>(array_, start_, index_ - step);
-  }
+template <bool is_const>
+typename Deque<T>::template basic_iterator<is_const>
+Deque<T>::basic_iterator<is_const>::operator+(int64_t step) const {
+  return basic_iterator<is_const>(array_, start_, index_ + step);
 };
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-typename Deque<T>::template basic_iterator<is_const, is_reversed>
-Deque<T>::basic_iterator<is_const, is_reversed>::operator-(int64_t step) const {
-  if (!is_reversed) {
-    return basic_iterator<is_const, is_reversed>(array_, start_, index_ - step);
-  } else {
-    return basic_iterator<is_const, is_reversed>(array_, start_, index_ + step);
-  }
+template <bool is_const>
+typename Deque<T>::template basic_iterator<is_const>
+Deque<T>::basic_iterator<is_const>::operator-(int64_t step) const {
+  return basic_iterator<is_const>(array_, start_, index_ - step);
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-int64_t Deque<T>::basic_iterator<is_const, is_reversed>::operator-(
+template <bool is_const>
+int64_t Deque<T>::basic_iterator<is_const>::operator-(
     const basic_iterator& other) const {
-  if (!is_reversed) {
-    return index_ - other.index_;
-  } else {
-    return other.index_ - index_;
-  }
+  return index_ - other.index_;
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-typename Deque<T>::template basic_iterator<is_const, is_reversed>&
-Deque<T>::basic_iterator<is_const, is_reversed>::operator++() {
-  if (!is_reversed) {
-    ++index_;
-  } else {
-    --index_;
-  }
+template <bool is_const>
+typename Deque<T>::template basic_iterator<is_const>&
+Deque<T>::basic_iterator<is_const>::operator++() {
+  ++index_;
   return *this;
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-typename Deque<T>::template basic_iterator<is_const, is_reversed>
-Deque<T>::basic_iterator<is_const, is_reversed>::operator++(int) {
-  if (!is_reversed) {
-    ++index_;
-  } else {
-    --index_;
-  }
+template <bool is_const>
+typename Deque<T>::template basic_iterator<is_const>
+Deque<T>::basic_iterator<is_const>::operator++(int) {
+  ++index_;
   return *this - 1;
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-typename Deque<T>::template basic_iterator<is_const, is_reversed>&
-Deque<T>::basic_iterator<is_const, is_reversed>::operator--() {
-  if (!is_reversed) {
-    --index_;
-  } else {
-    ++index_;
-  }
+template <bool is_const>
+typename Deque<T>::template basic_iterator<is_const>&
+Deque<T>::basic_iterator<is_const>::operator--() {
+  --index_;
   return *this;
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-typename Deque<T>::template basic_iterator<is_const, is_reversed>
-Deque<T>::basic_iterator<is_const, is_reversed>::operator--(int) {
-  if (!is_reversed) {
-    --index_;
-  } else {
-    ++index_;
-  }
+template <bool is_const>
+typename Deque<T>::template basic_iterator<is_const>
+Deque<T>::basic_iterator<is_const>::operator--(int) {
+  --index_;
   return *this + 1;
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-bool Deque<T>::basic_iterator<is_const, is_reversed>::operator==(
-    const basic_iterator<is_const, is_reversed>& other) const {
+template <bool is_const>
+bool Deque<T>::basic_iterator<is_const>::operator==(
+    const basic_iterator<is_const>& other) const {
   return index_ == other.index_;
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-bool Deque<T>::basic_iterator<is_const, is_reversed>::operator!=(
-    const basic_iterator<is_const, is_reversed>& other) const {
+template <bool is_const>
+bool Deque<T>::basic_iterator<is_const>::operator!=(
+    const basic_iterator<is_const>& other) const {
   return index_ != other.index_;
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-bool Deque<T>::basic_iterator<is_const, is_reversed>::operator<(
-    const basic_iterator<is_const, is_reversed>& other) const {
-  if (!is_reversed) {
-    return index_ < other.index_;
-  }
-  return index_ > other.index_;
+template <bool is_const>
+bool Deque<T>::basic_iterator<is_const>::operator<(
+    const basic_iterator<is_const>& other) const {
+  return index_ < other.index_;
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-bool Deque<T>::basic_iterator<is_const, is_reversed>::operator>=(
-    const basic_iterator<is_const, is_reversed>& other) const {
+template <bool is_const>
+bool Deque<T>::basic_iterator<is_const>::operator>=(
+    const basic_iterator<is_const>& other) const {
   return !(*this < other);
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-bool Deque<T>::basic_iterator<is_const, is_reversed>::operator>(
-    const basic_iterator<is_const, is_reversed>& other) const {
+template <bool is_const>
+bool Deque<T>::basic_iterator<is_const>::operator>(
+    const basic_iterator<is_const>& other) const {
   return other < *this;
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-bool Deque<T>::basic_iterator<is_const, is_reversed>::operator<=(
-    const basic_iterator<is_const, is_reversed>& other) const {
+template <bool is_const>
+bool Deque<T>::basic_iterator<is_const>::operator<=(
+    const basic_iterator<is_const>& other) const {
   return !(*this > other);
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-typename Deque<T>::template basic_iterator<is_const, is_reversed>::reference
-Deque<T>::basic_iterator<is_const, is_reversed>::operator*() const {
+template <bool is_const>
+typename Deque<T>::template basic_iterator<is_const>::reference
+Deque<T>::basic_iterator<is_const>::operator*() const {
   return const_cast<reference>(
       array_[index_ / Deque<T>::chunk_size_][index_ % Deque<T>::chunk_size_]);
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-typename Deque<T>::template basic_iterator<is_const, is_reversed>::pointer
-Deque<T>::basic_iterator<is_const, is_reversed>::operator->() const {
+template <bool is_const>
+typename Deque<T>::template basic_iterator<is_const>::pointer
+Deque<T>::basic_iterator<is_const>::operator->() const {
   return const_cast<pointer>(&(
       array_[index_ / Deque<T>::chunk_size_][index_ % Deque<T>::chunk_size_]));
 }
 
 template <typename T>
-template <bool is_const, bool is_reversed>
-Deque<T>::basic_iterator<is_const, is_reversed>::operator Deque<
-    T>::basic_iterator<true, false>() const {
-  return basic_iterator<true, false>(array_, start_, index_);
-}
-
-template <typename T>
-template <bool is_const, bool is_reversed>
-Deque<T>::basic_iterator<is_const, is_reversed>::operator Deque<
-    T>::basic_iterator<true, true>() const {
-  return basic_iterator<true, true>(array_, start_, index_);
+template <bool is_const>
+Deque<T>::basic_iterator<is_const>::operator Deque<T>::basic_iterator<true>()
+    const {
+  return basic_iterator<true>(array_, start_, index_);
 }
 
 template <typename T>
@@ -551,7 +512,7 @@ typename Deque<T>::const_iterator Deque<T>::cend() const {
 
 template <typename T>
 typename Deque<T>::reverse_iterator Deque<T>::rbegin() {
-  return {this, static_cast<int64_t>(start_ + size_) - 1};
+  return reverse_iterator(iterator(this, static_cast<int64_t>(start_ + size_)));
 }
 
 template <typename T>
@@ -561,12 +522,13 @@ typename Deque<T>::const_reverse_iterator Deque<T>::rbegin() const {
 
 template <typename T>
 typename Deque<T>::const_reverse_iterator Deque<T>::crbegin() const {
-  return {this, static_cast<int64_t>(start_ + size_) - 1};
-};
+  return const_reverse_iterator(
+      const_iterator(this, static_cast<int64_t>(start_ + size_)));
+}
 
 template <typename T>
 typename Deque<T>::reverse_iterator Deque<T>::rend() {
-  return {this, static_cast<int64_t>(start_) - 1};
+  return reverse_iterator(iterator(this, static_cast<int64_t>(start_)));
 }
 
 template <typename T>
@@ -576,8 +538,8 @@ typename Deque<T>::const_reverse_iterator Deque<T>::rend() const {
 
 template <typename T>
 typename Deque<T>::const_reverse_iterator Deque<T>::crend() const {
-  return {this, static_cast<int64_t>(start_) - 1};
-  ;
+  return const_reverse_iterator(
+      const_iterator(this, static_cast<int64_t>(start_)));
 }
 
 template <typename T>
