@@ -108,7 +108,8 @@ typename List<T, Allocator>::Node* List<T, Allocator>::construct_move_node_(
     Args&&... args) {
   Node* result = AllocatorTraits::allocate(allocator_, 1);
   try {
-    AllocatorTraits::construct(allocator_, &result->value, std::forward<Args>(args)...);
+    AllocatorTraits::construct(allocator_, &result->value,
+                               std::forward<Args>(args)...);
   } catch (...) {
     AllocatorTraits::deallocate(allocator_, result, 1);
     throw;
