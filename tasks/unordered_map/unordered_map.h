@@ -31,7 +31,7 @@ class List {
   Node* begin_ = nullptr;
   Node* end_ = nullptr;
   template <typename... Args>
-  Node* construct_node_(Args&&... args);
+  Node* construct_move_node_(Args&&... args);
   Node* construct_node_(const T& value);
   Node* construct_default_node_();
   void fill_(size_t n, const T& element);
@@ -41,7 +41,7 @@ class List {
   void swap_(List&& other);
 
  public:
-  template <bool is_const, bool is_reversed>
+  template <bool is_const>
   struct basic_iterator {
     Node* node;
     const List* list;
@@ -60,14 +60,13 @@ class List {
     bool operator!=(const basic_iterator& other) const;
     reference operator*() const;
     pointer operator->() const;
-    operator basic_iterator<true, false>() const;
-    operator basic_iterator<true, true>() const;
-    basic_iterator<is_const, false> base() const;
+    operator basic_iterator<true>() const;
+    basic_iterator<is_const> base() const;
   };
-  using iterator = basic_iterator<false, false>;
-  using const_iterator = basic_iterator<true, false>;
-  using reverse_iterator = basic_iterator<false, true>;
-  using const_reverse_iterator = basic_iterator<true, true>;
+  using iterator = basic_iterator<false>;
+  using const_iterator = basic_iterator<true>;
+  using reverse_iterator = std::reverse_iterator<iterator>;
+  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
   List() = default;
   List(size_t n);
   List(size_t n, const T& element);
@@ -105,12 +104,11 @@ class List {
 
 template <typename T, typename Allocator>
 template <typename... Args>
-typename List<T, Allocator>::Node* List<T, Allocator>::construct_node_(
+typename List<T, Allocator>::Node* List<T, Allocator>::construct_move_node_(
     Args&&... args) {
   Node* result = AllocatorTraits::allocate(allocator_, 1);
   try {
-    AllocatorTraits::construct(allocator_, &(result->value),
-                               std::forward<Args>(args)...);
+    AllocatorTraits::construct(allocator_, &result->value, std::forward<Args>(args)...);
   } catch (...) {
     AllocatorTraits::deallocate(allocator_, result, 1);
     throw;
@@ -227,145 +225,103 @@ void List<T, Allocator>::swap_(List&& other) {
 }
 
 template <typename T, typename Allocator>
-template <bool is_const, bool is_reversed>
-List<T, Allocator>::basic_iterator<is_const, is_reversed>::basic_iterator(
-    Node* node, const List* list)
+template <bool is_const>
+List<T, Allocator>::basic_iterator<is_const>::basic_iterator(Node* node,
+                                                             const List* list)
     : node(node),
       list(list) {
 }
 
 template <typename T, typename Allocator>
-template <bool is_const, bool is_reversed>
-typename List<T, Allocator>::template basic_iterator<is_const, is_reversed>&
-List<T, Allocator>::basic_iterator<is_const, is_reversed>::operator++() {
-  if (!is_reversed) {
-    if (node != nullptr) {
-      node = node->next;
-    } else {
-      node = list->begin_;
-    }
+template <bool is_const>
+typename List<T, Allocator>::template basic_iterator<is_const>&
+List<T, Allocator>::basic_iterator<is_const>::operator++() {
+  if (node != nullptr) {
+    node = node->next;
   } else {
-    if (node != nullptr) {
-      node = node->previous;
-    } else {
-      node = list->end_;
-    }
+    node = list->begin_;
   }
   return *this;
 }
 
 template <typename T, typename Allocator>
-template <bool is_const, bool is_reversed>
-typename List<T, Allocator>::template basic_iterator<is_const, is_reversed>
-List<T, Allocator>::basic_iterator<is_const, is_reversed>::operator++(int) {
+template <bool is_const>
+typename List<T, Allocator>::template basic_iterator<is_const>
+List<T, Allocator>::basic_iterator<is_const>::operator++(int) {
   basic_iterator copy = basic_iterator(*this);
-  if (!is_reversed) {
-    if (node != nullptr) {
-      node = node->next;
-    } else {
-      node = list->begin_;
-    }
+  if (node != nullptr) {
+    node = node->next;
   } else {
-    if (node != nullptr) {
-      node = node->previous;
-    } else {
-      node = list->end_;
-    }
+    node = list->begin_;
   }
   return copy;
 }
 
 template <typename T, typename Allocator>
-template <bool is_const, bool is_reversed>
-typename List<T, Allocator>::template basic_iterator<is_const, is_reversed>&
-List<T, Allocator>::basic_iterator<is_const, is_reversed>::operator--() {
-  if (!is_reversed) {
-    if (node != nullptr) {
-      node = node->previous;
-    } else {
-      node = list->end_;
-    }
+template <bool is_const>
+typename List<T, Allocator>::template basic_iterator<is_const>&
+List<T, Allocator>::basic_iterator<is_const>::operator--() {
+  if (node != nullptr) {
+    node = node->previous;
   } else {
-    if (node != nullptr) {
-      node = node->next;
-    } else {
-      node = list->begin_;
-    }
+    node = list->end_;
   }
   return *this;
 }
 
 template <typename T, typename Allocator>
-template <bool is_const, bool is_reversed>
-typename List<T, Allocator>::template basic_iterator<is_const, is_reversed>
-List<T, Allocator>::basic_iterator<is_const, is_reversed>::operator--(int) {
+template <bool is_const>
+typename List<T, Allocator>::template basic_iterator<is_const>
+List<T, Allocator>::basic_iterator<is_const>::operator--(int) {
   basic_iterator copy = basic_iterator(*this);
-  if (!is_reversed) {
-    if (node != nullptr) {
-      node = node->previous;
-    } else {
-      node = list->end_;
-    }
+  if (node != nullptr) {
+    node = node->previous;
   } else {
-    if (node != nullptr) {
-      node = node->next;
-    } else {
-      node = list->begin_;
-    }
+    node = list->end_;
   }
-  return *this;
   return copy;
 }
 
 template <typename T, typename Allocator>
-template <bool is_const, bool is_reversed>
-bool List<T, Allocator>::basic_iterator<is_const, is_reversed>::operator==(
+template <bool is_const>
+bool List<T, Allocator>::basic_iterator<is_const>::operator==(
     const basic_iterator& other) const {
   return node == other.node;
 }
 
 template <typename T, typename Allocator>
-template <bool is_const, bool is_reversed>
-bool List<T, Allocator>::basic_iterator<is_const, is_reversed>::operator!=(
+template <bool is_const>
+bool List<T, Allocator>::basic_iterator<is_const>::operator!=(
     const basic_iterator& other) const {
   return node != other.node;
 }
 
 template <typename T, typename Allocator>
-template <bool is_const, bool is_reversed>
-typename List<T, Allocator>::template basic_iterator<is_const,
-                                                     is_reversed>::reference
-List<T, Allocator>::basic_iterator<is_const, is_reversed>::operator*() const {
+template <bool is_const>
+typename List<T, Allocator>::template basic_iterator<is_const>::reference
+List<T, Allocator>::basic_iterator<is_const>::operator*() const {
   return node->value;
 }
 
 template <typename T, typename Allocator>
-template <bool is_const, bool is_reversed>
-typename List<T, Allocator>::template basic_iterator<is_const,
-                                                     is_reversed>::pointer
-List<T, Allocator>::basic_iterator<is_const, is_reversed>::operator->() const {
+template <bool is_const>
+typename List<T, Allocator>::template basic_iterator<is_const>::pointer
+List<T, Allocator>::basic_iterator<is_const>::operator->() const {
   return &(node->value);
 }
 
 template <typename T, typename Allocator>
-template <bool is_const, bool is_reversed>
-List<T, Allocator>::basic_iterator<is_const, is_reversed>::operator List<
-    T, Allocator>::basic_iterator<true, false>() const {
-  return basic_iterator<true, false>(node, list);
+template <bool is_const>
+List<T, Allocator>::basic_iterator<is_const>::operator List<
+    T, Allocator>::basic_iterator<true>() const {
+  return basic_iterator<true>(node, list);
 }
 
 template <typename T, typename Allocator>
-template <bool is_const, bool is_reversed>
-List<T, Allocator>::basic_iterator<is_const, is_reversed>::operator List<
-    T, Allocator>::basic_iterator<true, true>() const {
-  return basic_iterator<true, true>(node, list);
-}
-
-template <typename T, typename Allocator>
-template <bool is_const, bool is_reversed>
-typename List<T, Allocator>::template basic_iterator<is_const, false>
-List<T, Allocator>::basic_iterator<is_const, is_reversed>::base() const {
-  return basic_iterator<is_const, false>(node->next, list);
+template <bool is_const>
+typename List<T, Allocator>::template basic_iterator<is_const>
+List<T, Allocator>::basic_iterator<is_const>::base() const {
+  return basic_iterator<is_const>(node->next, list);
 }
 
 template <typename T, typename Allocator>
@@ -528,36 +484,36 @@ typename List<T, Allocator>::const_iterator List<T, Allocator>::cend() const {
 
 template <typename T, typename Allocator>
 typename List<T, Allocator>::reverse_iterator List<T, Allocator>::rbegin() {
-  return reverse_iterator(end_, this);
+  return reverse_iterator(iterator(nullptr, this));
 }
 
 template <typename T, typename Allocator>
 typename List<T, Allocator>::const_reverse_iterator List<T, Allocator>::rbegin()
     const {
-  return const_reverse_iterator(end_, this);
+  return crbegin();
 }
 
 template <typename T, typename Allocator>
 typename List<T, Allocator>::const_reverse_iterator
 List<T, Allocator>::crbegin() const {
-  return const_reverse_iterator(end_, this);
+  return const_reverse_iterator(const_iterator(nullptr, this));
 }
 
 template <typename T, typename Allocator>
 typename List<T, Allocator>::reverse_iterator List<T, Allocator>::rend() {
-  return reverse_iterator(nullptr, this);
+  return reverse_iterator(iterator(begin_, this));
 }
 
 template <typename T, typename Allocator>
 typename List<T, Allocator>::const_reverse_iterator List<T, Allocator>::rend()
     const {
-  return const_reverse_iterator(nullptr, this);
+  return crend();
 }
 
 template <typename T, typename Allocator>
 typename List<T, Allocator>::const_reverse_iterator List<T, Allocator>::crend()
     const {
-  return const_reverse_iterator(nullptr, this);
+  return const_reverse_iterator(const_iterator(begin_, this));
 }
 
 template <typename T, typename Allocator>
@@ -606,12 +562,13 @@ void List<T, Allocator>::erase(const const_iterator& iter) {
 template <typename T, typename Allocator>
 template <typename... Args>
 void List<T, Allocator>::emplace_back(Args&&... args) {
-  Node* node = construct_node_(std::forward<Args>(args)...);
+  Node* node = construct_move_node_(std::forward<Args>(args)...);
   if (end_ == nullptr) {
     end_ = node;
     begin_ = node;
   } else {
     end_->next = node;
+
     node->previous = end_;
     end_ = node;
   }
@@ -638,6 +595,7 @@ class UnorderedMap {
   Equal equal_ = Equal();
   Hash hash_ = Hash();
   List<NodeType, Alloc> data_;
+  [[no_unique_address]] Alloc regular_allocator_;
   std::vector<List<iterator, AllocIterator>, AllocList> hash_table_;
   float max_load_factor_ = 1.0;
 
