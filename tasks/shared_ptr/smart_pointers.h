@@ -22,11 +22,15 @@ class SharedPtr {
   template <typename U>
   friend class WeakPtr;
 
+  // NOLINTBEGIN
+
   template <typename... Args>
   friend SharedPtr<T> makeShared(Args&&... args);
 
   template <typename U, typename Allocator, typename... Args>
   friend SharedPtr<U> allocateShared(const Allocator& alloc, Args&&... args);
+
+  // NOLINTEND
 
  private:
   template <typename Deleter = std::default_delete<T>,
