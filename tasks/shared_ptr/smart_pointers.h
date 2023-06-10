@@ -23,7 +23,7 @@ class SharedPtr {
   friend class WeakPtr;
 
   template <typename... Args>
-  friend SharedPtr<T> makeShared(Args&&... args);
+  friend SharedPtr<T> make_shared(Args&&... args);
 
   template <typename U, typename Allocator, typename... Args>
   friend SharedPtr<U> allocateShared(const Allocator& alloc, Args&&... args);
@@ -215,7 +215,7 @@ class SharedPtr {
 };
 
 template <typename T, typename Alloc, typename... Args>
-SharedPtr<T> allocateShared(const Alloc& alloc, Args&&... args) {
+SharedPtr<T> allocate_shared(const Alloc& alloc, Args&&... args) {
   using MakeSharedAllocator =
       typename std::allocator_traits<Alloc>::template rebind_alloc<
           typename SharedPtr<T>::template ControlBlockMakeShared<Alloc>>;
@@ -233,8 +233,8 @@ SharedPtr<T> allocateShared(const Alloc& alloc, Args&&... args) {
 }
 
 template <typename T, typename... Args>
-SharedPtr<T> makeShared(Args&&... args) {
-  return allocateShared<T>(std::allocator<T>(), std::forward<Args>(args)...);
+SharedPtr<T> make_shared(Args&&... args) {
+  return allocate_shared<T>(std::allocator<T>(), std::forward<Args>(args)...);
 }
 
 template <typename T>
@@ -344,7 +344,7 @@ class WeakPtr {
 template <typename T>
 class EnableSharedFromThis {
  private:
-  mutable WeakPtr<T> weak_pointer;
+  mutable WeakPtr<T> weak_pointer_;
 
  protected:
   EnableSharedFromThis() = default;
@@ -356,10 +356,10 @@ class EnableSharedFromThis {
 
  public:
   SharedPtr<T> shared_from_this() {
-    return SharedPtr<T>(weak_pointer.lock());
+    return SharedPtr<T>(weak_pointer_.lock());
   }
   SharedPtr<const T> shared_from_this() const {
-    return SharedPtr<const T>(weak_pointer.lock());
+    return SharedPtr<const T>(weak_pointer_.lock());
   }
   virtual ~EnableSharedFromThis() = default;
 };
