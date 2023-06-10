@@ -77,10 +77,6 @@ class SharedPtr {
   T* object_ = nullptr;
   BaseControlBlock* block_ = nullptr;
 
-  void swap_(SharedPtr& other) {
-    std::swap(object_, other.object_);
-    std::swap(block_, other.block_);
-  }
   SharedPtr(T& object, BaseControlBlock* other_block)
       : object_(&object),
         block_(other_block) {
@@ -164,24 +160,24 @@ class SharedPtr {
       return *this;
     }
     SharedPtr<T> copy(other);
-    copy.swap_(*this);
+    copy.swap(*this);
     return *this;
   }
   template <typename U>
   SharedPtr<T>& operator=(const SharedPtr<U>& other) {
     SharedPtr<T> copy(other);
-    copy.swap_(*this);
+    copy.swap(*this);
     return *this;
   }
   SharedPtr& operator=(SharedPtr&& other) {
     SharedPtr copy(std::move(other));
-    copy.swap_(*this);
+    copy.swap(*this);
     return *this;
   }
   template <typename U>
   SharedPtr<T>& operator=(SharedPtr<U>&& other) {
     SharedPtr<T> copy(std::move(other));
-    copy.swap_(*this);
+    copy.swap(*this);
     return *this;
   }
   size_t use_count() const {
@@ -206,7 +202,8 @@ class SharedPtr {
     return object_;
   }
   void swap(SharedPtr& other) {
-    swap_(other);
+    std::swap(object_, other.object_);
+    std::swap(block_, other.block_);
   }
   void reset() {
     *this = SharedPtr();
@@ -251,7 +248,7 @@ class WeakPtr {
  private:
   BaseControlBlock* block_ = nullptr;
 
-  void swap_(WeakPtr& other) {
+  void swap(WeakPtr& other) {
     std::swap(block_, other.block_);
   }
 
@@ -297,7 +294,7 @@ class WeakPtr {
   }
   WeakPtr& operator=(const SharedPtr<T>& other) {
     WeakPtr copy(other);
-    copy.swap_(*this);
+    copy.swap(*this);
     return *this;
   }
   WeakPtr& operator=(const WeakPtr& other) {
@@ -305,33 +302,63 @@ class WeakPtr {
       return *this;
     }
     WeakPtr copy(other);
-    copy.swap_(*this);
+    copy.swap(*this);
     return *this;
   }
   template <typename U>
   WeakPtr<T>& operator=(const WeakPtr<U> other) {
     WeakPtr<T> copy(other);
-    copy.swap_(*this);
+    copy.swap(*this);
     return *this;
   }
   WeakPtr& operator=(WeakPtr&& other) {
     WeakPtr copy(std::move(other));
-    copy.swap_(*this);
+    copy.swap(*this);
     return *this;
   }
   template <typename U>
   WeakPtr<T>& operator=(WeakPtr<U>&& other) {
     WeakPtr<T> copy(std::move(other));
-    copy.swap_(*this);
+    copy.swap(*this);
     return *this;
   }
   bool expired() const {
-    return block_->shared_count_ == 0;
+    if (block_ != nullptr) {
+      return block_->shared_count_ == 0;
+    } else {
+      throw std::runtime_error("No block");
+    }
   }
   size_t use_count() const {
-    return block_->shared_count_;
+    if (block_ != nullptr) {
+      return block_->shared_count_;
+    } else {
+      throw std::runtime_error("No block");
+    }
   }
   SharedPtr<T> lock() const {
     return expired() ? SharedPtr<T>() : SharedPtr(*this);
   }
+};
+
+template <typename T>
+class EnableSharedFromThis {
+private:
+  mutable WeakPtr<T> weak_pointer;
+ 
+protected:
+  EnableSharedFromThis() = default;
+  EnableSharedFromThis(const EnableSharedFromThis&) {}
+  EnableSharedFromThis& operator=(const EnableSharedFromThis&) {
+    return *this;
+  }
+ 
+public:
+  SharedPtr<T> shared_from_this() {
+    return SharedPtr<T>(weak_pointer.lock());
+  }
+  SharedPtr<const T> shared_from_this() const {
+    return SharedPtr<const T>(weak_pointer.lock());
+  }
+  virtual ~EnableSharedFromThis() = default;
 };
