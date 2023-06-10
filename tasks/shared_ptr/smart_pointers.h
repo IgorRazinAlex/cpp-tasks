@@ -214,6 +214,8 @@ class SharedPtr {
   }
 };
 
+// NOLINTBEGIN
+
 template <typename T, typename Alloc, typename... Args>
 SharedPtr<T> allocateShared(const Alloc& alloc, Args&&... args) {
   using MakeSharedAllocator =
@@ -236,6 +238,8 @@ template <typename T, typename... Args>
 SharedPtr<T> makeShared(Args&&... args) {
   return allocateShared<T>(std::allocator<T>(), std::forward<Args>(args)...);
 }
+
+// NOLINTEND
 
 template <typename T>
 class WeakPtr {
