@@ -23,7 +23,7 @@ class SharedPtr {
   friend class WeakPtr;
 
   template <typename... Args>
-  friend SharedPtr<T> make_shared(Args&&... args);
+  friend SharedPtr<T> makeShared(Args&&... args);
 
   template <typename U, typename Allocator, typename... Args>
   friend SharedPtr<U> allocateShared(const Allocator& alloc, Args&&... args);
@@ -215,7 +215,7 @@ class SharedPtr {
 };
 
 template <typename T, typename Alloc, typename... Args>
-SharedPtr<T> allocate_shared(const Alloc& alloc, Args&&... args) {
+SharedPtr<T> allocatShared(const Alloc& alloc, Args&&... args) {
   using MakeSharedAllocator =
       typename std::allocator_traits<Alloc>::template rebind_alloc<
           typename SharedPtr<T>::template ControlBlockMakeShared<Alloc>>;
@@ -233,8 +233,8 @@ SharedPtr<T> allocate_shared(const Alloc& alloc, Args&&... args) {
 }
 
 template <typename T, typename... Args>
-SharedPtr<T> make_shared(Args&&... args) {
-  return allocate_shared<T>(std::allocator<T>(), std::forward<Args>(args)...);
+SharedPtr<T> makeShared(Args&&... args) {
+  return allocatShared<T>(std::allocator<T>(), std::forward<Args>(args)...);
 }
 
 template <typename T>
