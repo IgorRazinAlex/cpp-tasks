@@ -32,10 +32,8 @@ class List {
   Node* end_ = nullptr;
   template <typename... Args>
   Node* construct_node(Args&&... args);
-  Node* construct_node(const T& value);
-  Node* construct_default_node();
-  void fill(size_t n, const T& element);
-  void fill_default(size_t n);
+  template <typename... Args>
+  void fill(size_t n, Args&&... args);
   void clear();
   void swap(List& other);
   void swap(List&& other);
@@ -80,8 +78,10 @@ class List {
   List& operator=(List&& other);
   Allocator get_allocator() const;
   size_t size() const;
+  void push_back(T&& element);
   void push_back(const T& element);
   void pop_back();
+  void push_front(T&& element);
   void push_front(const T& element);
   void pop_front();
   iterator begin();
@@ -96,10 +96,15 @@ class List {
   reverse_iterator rend();
   const_reverse_iterator rend() const;
   const_reverse_iterator crend() const;
+  void insert(const const_iterator& iter, T&& element);
   void insert(const const_iterator& iter, const T& element);
   void erase(const const_iterator& iter);
   template <typename... Args>
+  void emplace(const const_iterator& iter, Args&&... args);
+  template <typename... Args>
   void emplace_back(Args&&... args);
+  template <typename... Args>
+  void emplace_front(Args&&... args);
 };
 
 template <typename T, typename Allocator>
@@ -120,65 +125,11 @@ typename List<T, Allocator>::Node* List<T, Allocator>::construct_node(
 }
 
 template <typename T, typename Allocator>
-typename List<T, Allocator>::Node* List<T, Allocator>::construct_node(
-    const T& element) {
-  Node* result = AllocatorTraits::allocate(allocator_, 1);
-  try {
-    AllocatorTraits::construct(allocator_, &(result->value), element);
-  } catch (...) {
-    AllocatorTraits::deallocate(allocator_, result, 1);
-    throw;
-  }
-  result->previous = nullptr;
-  result->next = nullptr;
-  return result;
-}
-
-template <typename T, typename Allocator>
-typename List<T, Allocator>::Node*
-List<T, Allocator>::construct_default_node() {
-  Node* result = AllocatorTraits::allocate(allocator_, 1);
-  try {
-    AllocatorTraits::construct(allocator_, &(result->value));
-  } catch (...) {
-    AllocatorTraits::deallocate(allocator_, result, 1);
-    throw;
-  }
-  result->previous = nullptr;
-  result->next = nullptr;
-  return result;
-}
-
-template <typename T, typename Allocator>
-void List<T, Allocator>::fill(size_t n, const T& element) {
+template <typename... Args>
+void List<T, Allocator>::fill(size_t n, Args&&... args) {
   try {
     for (size_t i = 0; i < n; ++i) {
-      Node* node = construct_node(element);
-      if (begin_ == nullptr) {
-        begin_ = node;
-        end_ = node;
-      } else if (begin_->next == nullptr) {
-        begin_->next = node;
-        node->previous = begin_;
-        end_ = node;
-      } else {
-        node->previous = end_;
-        end_->next = node;
-        end_ = node;
-      }
-      ++size_;
-    }
-  } catch (...) {
-    clear();
-    throw;
-  }
-}
-
-template <typename T, typename Allocator>
-void List<T, Allocator>::fill_default(size_t n) {
-  try {
-    for (size_t i = 0; i < n; ++i) {
-      Node* node = construct_default_node();
+      Node* node = construct_node(std::forward<Args>(args)...);
       if (begin_ == nullptr) {
         begin_ = node;
         end_ = node;
@@ -327,7 +278,7 @@ List<T, Allocator>::basic_iterator<is_const>::base() const {
 
 template <typename T, typename Allocator>
 List<T, Allocator>::List(size_t n) {
-  fill_default(n);
+  fill(n);
 }
 
 template <typename T, typename Allocator>
@@ -343,7 +294,7 @@ List<T, Allocator>::List(const Allocator& allocator)
 template <typename T, typename Allocator>
 List<T, Allocator>::List(size_t n, const Allocator& allocator)
     : allocator_(allocator) {
-  fill_default(n);
+  fill(n);
 }
 
 template <typename T, typename Allocator>
@@ -434,6 +385,11 @@ size_t List<T, Allocator>::size() const {
 }
 
 template <typename T, typename Allocator>
+void List<T, Allocator>::push_back(T&& element) {
+  insert({nullptr, this}, std::move(element));
+}
+
+template <typename T, typename Allocator>
 void List<T, Allocator>::push_back(const T& element) {
   insert({nullptr, this}, element);
 }
@@ -441,6 +397,11 @@ void List<T, Allocator>::push_back(const T& element) {
 template <typename T, typename Allocator>
 void List<T, Allocator>::pop_back() {
   erase({end_, this});
+}
+
+template <typename T, typename Allocator>
+void List<T, Allocator>::push_front(T&& element) {
+  insert({begin_, this}, std::move(element));
 }
 
 template <typename T, typename Allocator>
@@ -518,8 +479,36 @@ typename List<T, Allocator>::const_reverse_iterator List<T, Allocator>::crend()
 }
 
 template <typename T, typename Allocator>
+void List<T, Allocator>::insert(const const_iterator& iter, T&& element) {
+  emplace(iter, std::move(element));
+}
+
+template <typename T, typename Allocator>
 void List<T, Allocator>::insert(const const_iterator& iter, const T& element) {
-  Node* node = construct_node(element);
+  emplace(iter, element);
+}
+
+template <typename T, typename Allocator>
+void List<T, Allocator>::erase(const const_iterator& iter) {
+  if (iter.node->previous != nullptr) {
+    iter.node->previous->next = iter.node->next;
+  } else {
+    begin_ = iter.node->next;
+  }
+  if (iter.node->next != nullptr) {
+    iter.node->next->previous = iter.node->previous;
+  } else {
+    end_ = iter.node->previous;
+  }
+  AllocatorTraits::destroy(allocator_, iter.node);
+  AllocatorTraits::deallocate(allocator_, iter.node, 1);
+  --size_;
+}
+
+template <typename T, typename Allocator>
+template <typename... Args>
+void List<T, Allocator>::emplace(const const_iterator& iter, Args&&... args) {
+  Node* node = construct_node(std::forward<Args>(args)...);
   Node* place = iter.node;
   if (place == nullptr) {
     if (end_ == nullptr) {
@@ -544,36 +533,15 @@ void List<T, Allocator>::insert(const const_iterator& iter, const T& element) {
 }
 
 template <typename T, typename Allocator>
-void List<T, Allocator>::erase(const const_iterator& iter) {
-  if (iter.node->previous != nullptr) {
-    iter.node->previous->next = iter.node->next;
-  } else {
-    begin_ = iter.node->next;
-  }
-  if (iter.node->next != nullptr) {
-    iter.node->next->previous = iter.node->previous;
-  } else {
-    end_ = iter.node->previous;
-  }
-  AllocatorTraits::destroy(allocator_, iter.node);
-  AllocatorTraits::deallocate(allocator_, iter.node, 1);
-  --size_;
+template <typename... Args>
+void List<T, Allocator>::emplace_back(Args&&... args) {
+  emplace(end(), std::forward<Args>(args)...);
 }
 
 template <typename T, typename Allocator>
 template <typename... Args>
-void List<T, Allocator>::emplace_back(Args&&... args) {
-  Node* node = construct_node(std::forward<Args>(args)...);
-  if (end_ == nullptr) {
-    end_ = node;
-    begin_ = node;
-  } else {
-    end_->next = node;
-
-    node->previous = end_;
-    end_ = node;
-  }
-  ++size_;
+void List<T, Allocator>::emplace_front(Args&&... args) {
+  emplace(begin(), std::forward<Args>(args)...);
 }
 
 template <typename Key, typename Value, typename Hash = std::hash<Key>,
