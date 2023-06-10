@@ -345,7 +345,7 @@ template <typename T>
 class EnableSharedFromThis {
  private:
   mutable WeakPtr<T> weak_pointer;
- 
+
  protected:
   EnableSharedFromThis() = default;
   EnableSharedFromThis(const EnableSharedFromThis&) {
@@ -353,7 +353,7 @@ class EnableSharedFromThis {
   EnableSharedFromThis& operator=(const EnableSharedFromThis&) {
     return *this;
   }
- 
+
  public:
   SharedPtr<T> shared_from_this() {
     return SharedPtr<T>(weak_pointer.lock());
